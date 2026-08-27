@@ -387,6 +387,13 @@ export const fantasyAPI = {
         signal: controller.signal,
       });
       if (!r.ok) throw new Error(`HTTP ${r.status} fetching match stats`);
+      // Si el proxy /stats/ no está enrutado (p.ej. nginx sin location /stats/),
+      // el servidor front devuelve index.html con 200: detectarlo aquí evita un
+      // "Unexpected token '<'" opaco más abajo.
+      const contentType = r.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('La ruta /stats/ no está disponible (respuesta no-JSON del servidor)');
+      }
       const data = await r.json();
       return { data };
     } finally {

@@ -21,7 +21,7 @@ const MatchDetails = ({ matchId, weekNumber, onClose, isOpen }) => {
     setIsModalOpen(false);
     setSelectedPlayer(null);
   };
-  const { data: matchStats, isLoading, error } = useQuery({
+  const { data: matchStats, isLoading, error, refetch } = useQuery({
     queryKey: ['matchStats', weekNumber],
     queryFn: () => fantasyAPI.getMatchStats(weekNumber),
     enabled: isOpen && !!weekNumber,
@@ -29,8 +29,16 @@ const MatchDetails = ({ matchId, weekNumber, onClose, isOpen }) => {
   });
 
 
-  // Find the specific match data - handle both string and number comparison
-  const matchData = matchStats?.data?.find(match => String(match.id) === String(matchId));
+  // Find the specific match data - handle both string and number comparison.
+  // `data` puede venir como array directo o envuelto ({ data: [...] } / { elements: [...] }).
+  const statsList = Array.isArray(matchStats?.data)
+    ? matchStats.data
+    : Array.isArray(matchStats?.data?.data)
+    ? matchStats.data.data
+    : Array.isArray(matchStats?.data?.elements)
+    ? matchStats.data.elements
+    : [];
+  const matchData = statsList.find(match => String(match.id) === String(matchId));
 
 
   // Position names mapping
@@ -378,8 +386,9 @@ const MatchDetails = ({ matchId, weekNumber, onClose, isOpen }) => {
 
               {error && (
                 <ErrorDisplay
-                  message="Error al cargar las estadísticas del partido"
-                  onRetry={() => window.location.reload()}
+                  error={error}
+                  title="Error al cargar las estadísticas del partido"
+                  onRetry={() => refetch()}
                 />
               )}
 

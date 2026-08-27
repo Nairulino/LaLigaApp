@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { motion } from '../../utils/motionShim';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Crown, ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from 'lucide-react';
@@ -21,6 +21,10 @@ const Standings = () => {
   const [teamWeekPoints, setTeamWeekPoints] = useState(new Map());
   const [sortBy, setSortBy] = useState('position'); // position, manager, points, weekPoints, value, marketIncrease
   const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
+  // 'total' = clasificación acumulada (por defecto). Un número = ranking de esa
+  // jornada concreta (puntos que hizo cada manager esa semana).
+  const [selectedJornada, setSelectedJornada] = useState('total');
+  const isTotal = selectedJornada === 'total';
 
   const { data: standings, isLoading, error, refetch } = useQuery({
     queryKey: ['standings', leagueId],
@@ -34,6 +38,23 @@ const Standings = () => {
   // Get current week to fetch week points (shared hook, normalized number)
   const { weekNumber: currentWeekNumber } = useCurrentWeek();
 
+  // Ranking de una jornada concreta. Comparte queryKey con StandingsEvolution y
+  // con el efecto de "Pts Jornada" de más abajo, así que reutiliza caché.
+  const {
+    data: weeklyStandings,
+    isLoading: weeklyLoading,
+    error: weeklyError,
+    refetch: refetchWeekly,
+  } = useQuery({
+    queryKey: ['weeklyRanking', leagueId, selectedJornada],
+    queryFn: () => fantasyAPI.getLeagueRankingByWeek(leagueId, selectedJornada),
+    enabled: !!leagueId && !isTotal,
+    retry: false,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+
   // Market trends via el hook compartido (una query key para toda la app)
   const { trendsReady: trendsInitialized } = useMarketTrends();
 
@@ -44,6 +65,7 @@ const Standings = () => {
   useEffect(() => {
     const fetchTeamWeekPoints = async () => {
       if (!leagueId || !currentWeekNumber) return;
+      if (!isTotal) return; // en modo jornada los puntos salen de weeklyStandings
       const currentWeek = currentWeekNumber;
 
       try {
@@ -102,10 +124,32 @@ const Standings = () => {
     };
 
     fetchTeamWeekPoints();
-  }, [leagueId, currentWeekNumber, queryClient]);
+  }, [leagueId, currentWeekNumber, queryClient, isTotal]);
 
   // Handle different API response structures (memoized)
   const standingsData = useMemo(() => extractArray(standings), [standings]);
+
+  // En modo jornada: normaliza el ranking semanal a la forma que usa la tabla y
+  // asigna posición por puntos DE la jornada (desc).
+  const jornadaData = useMemo(() => {
+    if (isTotal) return [];
+    const rows = extractArray(weeklyStandings).map((item) => {
+      const team = item.team || {};
+      return {
+        id: item.id ?? team.id,
+        name: item.name ?? team.name,
+        manager: typeof item.manager === 'string' ? item.manager : team.manager?.managerName,
+        team,
+        userId: item.userId ?? team.manager?.id,
+        jornadaPoints: Number(item.points) || 0,
+      };
+    });
+    rows.sort((a, b) => b.jornadaPoints - a.jornadaPoints);
+    rows.forEach((row, i) => { row.position = i + 1; });
+    return rows;
+  }, [isTotal, weeklyStandings]);
+
+  const activeData = isTotal ? standingsData : jornadaData;
 
   // Helper functions defined before useMemo
   const getTeamName = (item) => {
@@ -134,13 +178,14 @@ const Standings = () => {
   }, [teamMarketIncreases]);
 
   const getWeekPoints = useCallback((item) => {
+    if (!isTotal) return item.jornadaPoints || 0;
     const teamId = getTeamId(item);
     const weekPointsFromMap = teamWeekPoints.get(teamId);
     if (weekPointsFromMap !== undefined) {
       return weekPointsFromMap;
     }
     return item.weekPoints || item.team?.weekPoints || 0;
-  }, [teamWeekPoints]);
+  }, [teamWeekPoints, isTotal]);
 
   // Handle column header click for sorting
   const handleSort = (column) => {
@@ -156,7 +201,7 @@ const Standings = () => {
 
   // Sort standings based on selected column and order
   const sortedStandings = useMemo(() => {
-    const data = Array.isArray(standingsData) ? [...standingsData] : [];
+    const data = Array.isArray(activeData) ? [...activeData] : [];
 
     return data.sort((a, b) => {
       let valueA, valueB;
@@ -200,7 +245,7 @@ const Standings = () => {
 
       return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
     });
-  }, [standingsData, sortBy, sortOrder, getTeamMarketIncrease, getWeekPoints]);
+  }, [activeData, sortBy, sortOrder, getTeamMarketIncrease, getWeekPoints]);
 
   // Guarded UI returns after hooks
   if (isLoading) return <LoadingSpinner fullScreen={true} />;
@@ -281,28 +326,73 @@ const Standings = () => {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             {sortedStandings.length} equipos en la liga
+            {!isTotal && ` · puntos de la jornada ${selectedJornada}`}
           </p>
         </div>
-        <button
-          onClick={async () => {
-            await queryClient.invalidateQueries({ queryKey: ['standings', leagueId] });
-            await queryClient.invalidateQueries({ queryKey: ['teamData'] });
-            refetch();
-          }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" aria-hidden="true" />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          <label htmlFor="standings-jornada" className="sr-only">Filtrar por jornada</label>
+          <select
+            id="standings-jornada"
+            value={selectedJornada}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setSelectedJornada(raw === 'total' ? 'total' : Number(raw));
+              setSortBy('position');
+              setSortOrder('asc');
+            }}
+            className="input-field"
+          >
+            <option value="total">Total (acumulado)</option>
+            {Array.from({ length: currentWeekNumber || 0 }, (_, i) => i + 1)
+              .reverse()
+              .map((j) => (
+                <option key={j} value={j}>Jornada {j}</option>
+              ))}
+          </select>
+          <button
+            onClick={async () => {
+              if (isTotal) {
+                await queryClient.invalidateQueries({ queryKey: ['standings', leagueId] });
+                await queryClient.invalidateQueries({ queryKey: ['teamData'] });
+                refetch();
+              } else {
+                await queryClient.invalidateQueries({ queryKey: ['weeklyRanking', leagueId, selectedJornada] });
+                refetchWeekly();
+              }
+            }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Evolución de posiciones por jornada (colapsable) */}
-      <StandingsEvolution
-        leagueId={leagueId}
-        currentWeekNumber={currentWeekNumber}
-        userTeamId={getTeamId(standingsData.find(isCurrentUser) || {})}
-      />
+      {isTotal && (
+        <StandingsEvolution
+          leagueId={leagueId}
+          currentWeekNumber={currentWeekNumber}
+          userTeamId={getTeamId(standingsData.find(isCurrentUser) || {})}
+        />
+      )}
 
+      {!isTotal && weeklyLoading && (
+        <div className="py-12">
+          <LoadingSpinner label={`Cargando jornada ${selectedJornada}…`} />
+        </div>
+      )}
+
+      {!isTotal && weeklyError && !weeklyLoading && (
+        <ErrorDisplay
+          error={weeklyError}
+          title={`Error al cargar la jornada ${selectedJornada}`}
+          onRetry={refetchWeekly}
+        />
+      )}
+
+      {(isTotal || (!weeklyLoading && !weeklyError)) && (
+      <>
       {/* Standings Table - Desktop */}
       <div className="card overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
@@ -311,10 +401,12 @@ const Standings = () => {
               <tr>
                 <SortableHeader column="position">Posición</SortableHeader>
                 <SortableHeader column="manager">Manager</SortableHeader>
-                <SortableHeader column="weekPoints" align="right">Pts Jornada</SortableHeader>
-                <SortableHeader column="points" align="right">Puntos</SortableHeader>
-                <SortableHeader column="marketIncrease" align="right">Subida Valor</SortableHeader>
-                <SortableHeader column="value" align="right">Valor</SortableHeader>
+                <SortableHeader column="weekPoints" align="right">
+                  {isTotal ? 'Pts Jornada' : `Pts J${selectedJornada}`}
+                </SortableHeader>
+                {isTotal && <SortableHeader column="points" align="right">Puntos</SortableHeader>}
+                {isTotal && <SortableHeader column="marketIncrease" align="right">Subida Valor</SortableHeader>}
+                {isTotal && <SortableHeader column="value" align="right">Valor</SortableHeader>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -374,10 +466,11 @@ const Standings = () => {
                         {formatNumber(getWeekPoints(item))}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        jornada actual
+                        {isTotal ? 'jornada actual' : `jornada ${selectedJornada}`}
                       </div>
                     </td>
 
+                    {isTotal && (
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-lg font-bold text-gray-900 dark:text-white">
                         {formatNumber(getTeamPoints(item))}
@@ -386,7 +479,9 @@ const Standings = () => {
                         total
                       </div>
                     </td>
+                    )}
 
+                    {isTotal && (
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className={`text-sm font-medium ${
                         getTeamMarketIncrease(item) > 0
@@ -401,7 +496,9 @@ const Standings = () => {
                         {trendsInitialized ? 'últimas 24h' : 'cargando...'}
                       </div>
                     </td>
+                    )}
 
+                    {isTotal && (
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatCurrency(getTeamValue(item))}
@@ -410,6 +507,7 @@ const Standings = () => {
                         valor
                       </div>
                     </td>
+                    )}
                   </motion.tr>
                 );
               })}
@@ -481,6 +579,7 @@ const Standings = () => {
                 </div>
 
                 {/* Stats - Improved spacing and size */}
+                {isTotal ? (
                 <div className="grid pt-3 border-t border-gray-200 dark:border-gray-700" style={{gridTemplateColumns: '1fr 1fr 1.5fr 1.5fr', gap: '0.25rem'}}>
                   <div className="text-center">
                     <div className="text-[9px] font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">
@@ -521,6 +620,16 @@ const Standings = () => {
                     </div>
                   </div>
                 </div>
+                ) : (
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase">
+                    Puntos jornada {selectedJornada}
+                  </span>
+                  <span className="text-lg font-black text-primary-600 dark:text-primary-400 leading-tight">
+                    {formatNumber(getWeekPoints(item))}
+                  </span>
+                </div>
+                )}
               </div>
             </motion.div>
           );
@@ -534,9 +643,13 @@ const Standings = () => {
             No hay datos de clasificación
           </h3>
           <p className="text-gray-500 dark:text-gray-400">
-            Los datos de clasificación se cargarán cuando estén disponibles
+            {isTotal
+              ? 'Los datos de clasificación se cargarán cuando estén disponibles'
+              : `Aún no hay puntuaciones para la jornada ${selectedJornada}`}
           </p>
         </div>
+      )}
+      </>
       )}
     </div>
   );

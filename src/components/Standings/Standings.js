@@ -285,9 +285,10 @@ const Standings = () => {
 
   const handleRowClick = (item) => {
     const teamId = getTeamId(item);
-    if (teamId) {
-      navigate(`/teams/${teamId}/players`);
-    }
+    if (!teamId) return;
+    // En modo jornada abrimos la alineación de ese equipo en esa jornada (misma
+    // vista que "Ver Alineaciones"). En modo total, la plantilla del equipo.
+    navigate(isTotal ? `/teams/${teamId}/players` : `/lineup/${teamId}?week=${selectedJornada}`);
   };
 
   // Helper component for sortable column headers
@@ -326,7 +327,7 @@ const Standings = () => {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             {sortedStandings.length} equipos en la liga
-            {!isTotal && ` · puntos de la jornada ${selectedJornada}`}
+            {!isTotal && ` · puntos de la jornada ${selectedJornada} · toca un equipo para ver su alineación`}
           </p>
         </div>
         <div className="flex items-center gap-3">

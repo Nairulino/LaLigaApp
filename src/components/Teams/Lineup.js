@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from '../../utils/motionShim';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Users, Calendar, ArrowLeft, ArrowRight, RefreshCw, User, Target, ChevronDown, Check } from 'lucide-react';
 import { fantasyAPI } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -43,7 +43,14 @@ const processLineupResponse = (response) => {
 
 const Lineup = ({ teamId: propTeamId }) => {
   const { teamId: urlTeamId } = useParams();
-  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [searchParams] = useSearchParams();
+  // Deep-link opcional: /lineup/:teamId?week=N (p.ej. desde la Clasificación
+  // filtrada por jornada). Si no viene, se usa la jornada actual.
+  const weekFromUrl = (() => {
+    const raw = parseInt(searchParams.get('week'), 10);
+    return Number.isInteger(raw) && raw >= 1 && raw <= 38 ? raw : null;
+  })();
+  const [selectedWeek, setSelectedWeek] = useState(weekFromUrl);
   const [, setCurrentWeek] = useState(1);
   const [inputWeek, setInputWeek] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState(urlTeamId || propTeamId || null);
@@ -67,6 +74,23 @@ const Lineup = ({ teamId: propTeamId }) => {
     }
   }, [currentWeekNumber, selectedWeek]);
 
+  // El componente no se remonta cuando solo cambian los params de la ruta
+  // (navegar de /lineup/A?week=1 a /lineup/B?week=3), así que sincronizamos
+  // equipo y jornada con la URL a mano.
+  useEffect(() => {
+    if (urlTeamId && urlTeamId !== selectedTeamId) {
+      setSelectedTeamId(urlTeamId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTeamId]);
+
+  useEffect(() => {
+    if (weekFromUrl && weekFromUrl !== selectedWeek) {
+      setSelectedWeek(weekFromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekFromUrl]);
+
   // Clasificación vía la query compartida (misma caché que el resto de vistas)
   const {
     data: standings,
@@ -80,6 +104,24 @@ const Lineup = ({ teamId: propTeamId }) => {
     gcTime: 30 * 60 * 1000,
   });
   const leagueTeams = useMemo(() => extractArray(standings), [standings]);
+
+  // Ranking semanal: da el total OFICIAL de puntos del equipo en la jornada
+  // (ya con capitán x2 y cambios automáticos del banquillo aplicados). La suma
+  // de los 11 en pista no cuadra con esto justamente por eso. Misma queryKey
+  // que Standings/StandingsEvolution → caché compartida.
+  const { data: weeklyRanking } = useQuery({
+    queryKey: ['weeklyRanking', leagueId, selectedWeek],
+    queryFn: () => fantasyAPI.getLeagueRankingByWeek(leagueId, selectedWeek),
+    enabled: !!leagueId && !!selectedWeek,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+  const officialJornadaPoints = useMemo(() => {
+    const row = extractArray(weeklyRanking).find(
+      (r) => String(r.team?.id ?? r.id) === String(selectedTeamId)
+    );
+    return row ? Number(row.points) || 0 : null;
+  }, [weeklyRanking, selectedTeamId]);
 
   // If no team selected, select user's team or first team
   useEffect(() => {
@@ -364,6 +406,13 @@ const Lineup = ({ teamId: propTeamId }) => {
   const formationString = getFormationString();
   const formation = getFormationLayout(formationString);
 
+  // Total de la jornada del equipo = suma de los puntos de los 11 alineados.
+  const lineupPlayers = Array.isArray(lineupData?.players) ? lineupData.players : [];
+  const jornadaTotalPoints = lineupPlayers.reduce(
+    (sum, player) => sum + getWeekPoints(player, selectedWeek),
+    0
+  );
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Compact Header & Controls */}
@@ -588,6 +637,19 @@ const Lineup = ({ teamId: propTeamId }) => {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {getPlayersCount()} jugadores alineados
               </p>
+            </div>
+            <div className="text-center border-l border-gray-200 dark:border-gray-700 pl-4">
+              <div className="text-2xl font-bold" style={{color: '#0A6522'}}>
+                {officialJornadaPoints ?? jornadaTotalPoints}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                puntos J{selectedWeek}
+              </div>
+              {officialJornadaPoints !== null && officialJornadaPoints !== jornadaTotalPoints && (
+                <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                  suma en pista: {jornadaTotalPoints}
+                </div>
+              )}
             </div>
           </div>
 

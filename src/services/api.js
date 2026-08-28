@@ -360,45 +360,17 @@ export const fantasyAPI = {
   getMatchday: (weekNumber) => api.get(`${CMP}/calendar?weekNumber=${weekNumber}&x-lang=es`).then(adaptCalendarResponse),
   getCurrentWeek: () => api.get(`${CMP}/week/current?x-lang=es`),
 
-  // Estadísticas de partidos - usar proxy con autenticación
+  // Estadísticas de partidos. La ruta vive fuera de /api (prefijo /stats), así
+  // que se pasa una URL absoluta al origen del proxy para saltar el baseURL de
+  // `api`. Al ir por el cliente `api` reutiliza sus interceptores: refresco
+  // proactivo del token si está caducado, reintento único ante 401 y tipado de
+  // errores (403/404/500...) para que ErrorDisplay muestre un mensaje útil en
+  // vez de un "HTTP 403" pelado. El fetch() manual anterior mandaba el token
+  // caducado tal cual y el servicio de stats respondía 403.
   getMatchStats: async (weekNumber) => {
-    // Determine base URL based on environment
-    let baseUrl;
-    if (isElectron) {
-      baseUrl = 'http://localhost:3005';
-    } else if (isDev) {
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const host = window.location.hostname || 'localhost';
-      baseUrl = `${protocol}//${host}:3005`;
-    } else {
-      baseUrl = window.location.origin;
-    }
-
-    const token = useAuthStore.getState().getBearerToken();
-    const headers = { 'Content-Type': 'application/json', 'x-lang': 'es' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 10000);
-    try {
-      const r = await fetch(`${baseUrl}/stats/v1/competition/${COMPETITION_ID}/stats/week/${weekNumber}?x-lang=es`, {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status} fetching match stats`);
-      // Si el proxy /stats/ no está enrutado (p.ej. nginx sin location /stats/),
-      // el servidor front devuelve index.html con 200: detectarlo aquí evita un
-      // "Unexpected token '<'" opaco más abajo.
-      const contentType = r.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('La ruta /stats/ no está disponible (respuesta no-JSON del servidor)');
-      }
-      const data = await r.json();
-      return { data };
-    } finally {
-      clearTimeout(id);
-    }
+    const url = `${resolveProxyOrigin()}/stats/v1/competition/${COMPETITION_ID}/stats/week/${weekNumber}?x-lang=es`;
+    const res = await api.get(url);
+    return { data: res.data };
   },
 
   // Ofertas y dinero

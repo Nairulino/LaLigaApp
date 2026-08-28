@@ -152,6 +152,46 @@ const createFantasyProxy = (config) => {
       }
     });
 
+    // http-proxy-middleware copia TODAS las cabeceras entrantes al request de
+    // salida. Detrás de nginx + túnel de Cloudflare eso arrastra cabeceras de
+    // reenvío y de CF (cf-connecting-ip, cdn-loop, x-forwarded-*, cookie…) hasta
+    // el WAF de LaLiga, que responde 403 al ver una IP pública ajena o el
+    // marcador cdn-loop. Desde la IP local no aparecen y por eso "sí funciona".
+    // Las quitamos: a la API solo le mandamos el set explícito de forwardHeaders
+    // (+ host/accept*, que gestiona el propio proxy).
+    const STRIP_OUTBOUND_HEADERS = [
+      'cookie',
+      'cdn-loop',
+      'via',
+      'forwarded',
+      'referer',
+      'origin',
+      'x-real-ip',
+      'x-forwarded-for',
+      'x-forwarded-host',
+      'x-forwarded-proto',
+      'x-forwarded-port',
+      'x-forwarded-server',
+      'true-client-ip',
+      'cf-connecting-ip',
+      'cf-connecting-ipv6',
+      'cf-ipcountry',
+      'cf-ray',
+      'cf-visitor',
+      'cf-warp-tag-id',
+      'cf-worker',
+      'cf-ew-via',
+      'x-request-start',
+      'x-forwarded-ssl',
+    ];
+    STRIP_OUTBOUND_HEADERS.forEach((name) => {
+      try {
+        proxyReq.removeHeader(name);
+      } catch {
+        // Header might not be set
+      }
+    });
+
     try {
       const parsedUrl = new URL(req.originalUrl, 'http://internal-proxy.local');
       const lang = parsedUrl.searchParams.get('x-lang');

@@ -647,7 +647,7 @@ const Lineup = ({ teamId: propTeamId }) => {
               </div>
               {officialJornadaPoints !== null && officialJornadaPoints !== jornadaTotalPoints && (
                 <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                  suma en pista: {jornadaTotalPoints}
+                  suma jugadores: {jornadaTotalPoints} · sin capitán ni cambios
                 </div>
               )}
             </div>

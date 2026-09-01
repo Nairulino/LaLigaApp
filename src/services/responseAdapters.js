@@ -165,3 +165,62 @@ export const adaptStandingResponse = (response) => {
   const normalized = list.map(normalizeStandingEntry);
   return { ...response, data: Array.isArray(response.data) ? normalized : { ...response.data, elements: normalized } };
 };
+
+/**
+ * El mercado (/league/{id}/market) trae `playerMaster` sin (o con) el objeto
+ * `team` a medias: normalmente solo `teamId`, así que las fichas del mercado
+ * no podían mostrar escudo ni club (en "Mi equipo" sí, porque getTeamData sí
+ * lo embebe). Rellenamos `playerMaster.team` desde teams-master, igual que
+ * hace normalizePlayer para /v6/players.
+ */
+export const createAdaptMarketResponse = (loadTeamsMaster) => async (response) => {
+  const pickList = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.elements)) return data.elements;
+    if (Array.isArray(data?.data)) return data.data;
+    return null;
+  };
+  const list = pickList(response?.data);
+  if (!list) return response;
+
+  const needsTeam = list.some((it) => {
+    const pm = it?.playerMaster;
+    return pm && !pm.team?.badgeColor && !pm.team?.badgeWhite;
+  });
+  if (!needsTeam) return response;
+
+  const teamsMap = await loadTeamsMaster();
+  if (!teamsMap || teamsMap.size === 0) return response;
+
+  const enrichPlayer = (pm) => {
+    if (!pm) return pm;
+    const teamId = pm.teamId != null ? String(pm.teamId)
+                 : (pm.team?.id != null ? String(pm.team.id) : null);
+    const info = teamId ? teamsMap.get(teamId) : null;
+    if (!info) return pm;
+    return {
+      ...pm,
+      team: {
+        id: teamId,
+        ...(pm.team || {}),
+        name: pm.team?.name || info.name,
+        shortName: pm.team?.shortName || info.shortName,
+        slug: pm.team?.slug || info.slug,
+        badgeColor: pm.team?.badgeColor || info.badgeColor,
+        badgeWhite: pm.team?.badgeWhite || info.badgeWhite,
+      },
+    };
+  };
+
+  const adapted = list.map((it) =>
+    it?.playerMaster ? { ...it, playerMaster: enrichPlayer(it.playerMaster) } : it
+  );
+
+  const rewrap = (data) => {
+    if (Array.isArray(data)) return adapted;
+    if (Array.isArray(data?.elements)) return { ...data, elements: adapted };
+    if (Array.isArray(data?.data)) return { ...data, data: adapted };
+    return data;
+  };
+  return { ...response, data: rewrap(response.data) };
+};

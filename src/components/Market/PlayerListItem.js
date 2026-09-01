@@ -114,17 +114,28 @@ const PlayerListItem = ({
           <h3 className="font-semibold text-gray-900 dark:text-white">
             {player.nickname || player.name}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span>{player.team?.name}</span>
-            {player.team?.badgeColor && (
-              <img
-                src={player.team.badgeColor}
-                alt={`${player.team.name} badge`}
-                className="w-5 h-5 object-contain"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-            )}
-          </div>
+          {(() => {
+            const team = player.team || {};
+            const teamId = team.id ?? player.teamId;
+            const badge =
+              team.badgeColor ||
+              team.badgeWhite ||
+              (teamId ? `https://assets-fantasy.llt-services.com/teams/${teamId}/badge.png` : null);
+            return (
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                {badge && (
+                  <img
+                    src={badge}
+                    alt={team.name ? `Escudo ${team.name}` : 'Escudo del equipo'}
+                    className="w-5 h-5 object-contain flex-shrink-0"
+                    loading="lazy"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                <span>{team.name || team.shortName || 'Equipo desconocido'}</span>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="bg-yellow-50 dark:bg-gray-400/20 rounded-lg p-3">

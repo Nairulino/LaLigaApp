@@ -6,6 +6,7 @@ import {
   createAdaptPlayersResponse,
   createTeamsMasterLoader,
   createAdaptCalendarResponse,
+  createAdaptMarketResponse,
   adaptStandingResponse,
   adaptLeaguesResponse,
 } from './responseAdapters';
@@ -182,6 +183,7 @@ const api = new ApiClient({
 const loadTeamsMaster = createTeamsMasterLoader(api);
 const adaptPlayersResponse = createAdaptPlayersResponse(loadTeamsMaster);
 const adaptCalendarResponse = createAdaptCalendarResponse(loadTeamsMaster);
+const adaptMarketResponse = createAdaptMarketResponse(loadTeamsMaster);
 
 // Interceptor para añadir el token de autenticación
 api.interceptors.request.use(
@@ -350,7 +352,7 @@ export const fantasyAPI = {
   getPremiumConfiguration: () => api.get('/v4/leagues/premium-configuration?x-lang=es'),
 
   // Mercado
-  getMarket: (leagueId) => api.get(`${CMP}/league/${leagueId}/market?x-lang=es`),
+  getMarket: (leagueId) => api.get(`${CMP}/league/${leagueId}/market?x-lang=es`).then(adaptMarketResponse),
 
   // Jugadores
   getAllPlayers: () => api.get(`${CMP}/players?x-lang=es`).then(adaptPlayersResponse),

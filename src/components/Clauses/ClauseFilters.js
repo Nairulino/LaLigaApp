@@ -1,8 +1,37 @@
 import React from 'react';
 import {
-  Shield, User, Trophy, Filter, Eye, ChevronDown, ChevronUp,
+  Shield, User, Trophy, Filter, Eye, Lock, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { getPositionName } from '../../utils/helpers';
+
+// Metadatos de los 3 modos del filtro de disponibilidad.
+const AVAILABILITY_META = {
+  available: {
+    label: 'Solo disponibles',
+    short: 'Disp.',
+    icon: Shield,
+    border: 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800',
+    text: 'text-green-700 dark:text-green-300',
+    subtext: 'text-green-600 dark:text-green-400',
+  },
+  all: {
+    label: 'Todas las cláusulas',
+    short: 'Todas',
+    icon: Eye,
+    border: 'border-primary-200 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-800',
+    text: 'text-primary-700 dark:text-primary-300',
+    subtext: 'text-primary-600 dark:text-primary-400',
+  },
+  locked: {
+    label: 'Solo bloqueadas',
+    short: 'Bloq.',
+    icon: Lock,
+    border: 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800',
+    text: 'text-red-700 dark:text-red-300',
+    subtext: 'text-red-600 dark:text-red-400',
+  },
+};
+const AVAILABILITY_ORDER = ['available', 'all', 'locked'];
 
 const POSITION_TEXT = {
   all: 'text-gray-700 dark:text-gray-300',
@@ -44,8 +73,8 @@ const SORT_LABEL = {
 };
 
 const ClauseFilters = ({
-  showAll,
-  setShowAll,
+  availabilityFilter,
+  setAvailabilityFilter,
   ownerFilter,
   setOwnerFilter,
   positionFilter,
@@ -68,76 +97,62 @@ const ClauseFilters = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* Show All Toggle */}
+        {/* Availability Filter */}
         <div className="flex flex-col h-full" style={{ minHeight: '160px' }}>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Filtro de disponibilidad
           </label>
           <div className="space-y-2">
-            <div
-              className={`px-3 py-2 rounded-lg border-2 ${
-                showAll
-                  ? 'border-primary-200 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-800'
-                  : 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {showAll ? (
-                  <Eye className="w-4 h-4 text-primary-600 dark:text-primary-400" aria-hidden="true" />
-                ) : (
-                  <Shield className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
-                )}
-                <span
-                  className={`text-sm font-medium ${
-                    showAll
-                      ? 'text-primary-700 dark:text-primary-300'
-                      : 'text-green-700 dark:text-green-300'
-                  }`}
-                >
-                  {showAll ? 'Todas las cláusulas' : 'Solo disponibles'}
-                </span>
-              </div>
-              <div
-                className={`text-xs mt-1 ${
-                  showAll
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-green-600 dark:text-green-400'
-                }`}
-              >
-                {showAll
-                  ? `${filteredClauses.length} cláusulas en total`
-                  : `${
-                      filteredClauses.filter(
-                        (c) =>
-                          !c.isLocked ||
-                          (c.unlockTime && new Date(c.unlockTime) <= new Date())
-                      ).length
-                    } cláusulas disponibles`}
-              </div>
-            </div>
+            {(() => {
+              const meta = AVAILABILITY_META[availabilityFilter] || AVAILABILITY_META.available;
+              const Icon = meta.icon;
+              const count =
+                availabilityFilter === 'all'
+                  ? clausesData.length
+                  : availabilityFilter === 'locked'
+                  ? clausesData.filter((c) => c.isLocked).length
+                  : clausesData.filter((c) => !c.isLocked).length;
+              return (
+                <div className={`px-3 py-2 rounded-lg border-2 ${meta.border}`}>
+                  <div className="flex items-center gap-2">
+                    <Icon className={`w-4 h-4 ${meta.subtext}`} aria-hidden="true" />
+                    <span className={`text-sm font-medium ${meta.text}`}>{meta.label}</span>
+                  </div>
+                  <div className={`text-xs mt-1 ${meta.subtext}`}>
+                    {count} cláusula{count === 1 ? '' : 's'}
+                    {availabilityFilter === 'all'
+                      ? ' en total'
+                      : availabilityFilter === 'locked'
+                      ? ' bloqueadas'
+                      : ' disponibles'}
+                  </div>
+                </div>
+              );
+            })()}
 
-            <button
-              type="button"
-              onClick={() => setShowAll(!showAll)}
-              aria-pressed={showAll}
-              className={`w-full flex items-center justify-start gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-200 border-2 text-sm ${
-                showAll
-                  ? 'border-green-300 bg-green-100 hover:bg-green-200 text-green-800 dark:border-green-600 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-200'
-                  : 'border-primary-300 bg-primary-100 hover:bg-primary-200 text-primary-800 dark:border-primary-600 dark:bg-primary-900/30 dark:hover:bg-primary-900/50 dark:text-primary-200'
-              }`}
-            >
-              {showAll ? (
-                <>
-                  <Shield className="w-3 h-3" aria-hidden="true" />
-                  <span>Solo disponibles</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-3 h-3" aria-hidden="true" />
-                  <span>Todas</span>
-                </>
-              )}
-            </button>
+            <div className="grid grid-cols-3 gap-1">
+              {AVAILABILITY_ORDER.map((key) => {
+                const meta = AVAILABILITY_META[key];
+                const Icon = meta.icon;
+                const active = availabilityFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setAvailabilityFilter(key)}
+                    aria-pressed={active}
+                    className={`flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-lg font-medium transition-all duration-200 border-2 text-xs ${
+                      active
+                        ? `${meta.border} ${meta.text}`
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{meta.short}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { motion } from '../../../utils/motionShim';
 import { Clock, Unlock, Shield, Plus, ShoppingCart, X, Trophy, TrendingUp } from 'lucide-react';
 import { formatNumber, formatNumberWithDots, getPositionName, getPositionColor } from '../../../utils/helpers';
 import { getClauseStatusColor, getClauseLockState } from '../../../utils/clauseUtils';
+import ClauseBuyoutButton from './ClauseBuyoutButton';
 
 const PlayerRow = ({
     playerTeam,
@@ -20,6 +21,7 @@ const PlayerRow = ({
     onWithdrawFromMarket,
     onBid,
     onCancelBid,
+    onClausular,
 }) => {
     const player = playerTeam.playerMaster;
     if (!player) return null;
@@ -273,7 +275,7 @@ const PlayerRow = ({
 
                 {/* Bid/Cancel Bid - other teams */}
                 {!isCurrentUserTeam && playerTeam?.buyoutClause && (
-                    <div className="pt-3 border-t border-gray-200 dark:border-dark-border">
+                    <div className="pt-3 border-t border-gray-200 dark:border-dark-border space-y-2">
                         {hasUserBid(playerTeam) ? (
                             <button
                                 type="button"
@@ -301,6 +303,12 @@ const PlayerRow = ({
                                 Pujar
                             </button>
                         )}
+
+                        <ClauseBuyoutButton
+                            player={player}
+                            playerTeam={playerTeam}
+                            onClausular={onClausular}
+                        />
                     </div>
                 )}
             </div>

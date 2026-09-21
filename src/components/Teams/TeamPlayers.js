@@ -15,12 +15,15 @@ import useModalFlow from '../../hooks/useModalFlow';
 import useMarketTrends from '../../hooks/useMarketTrends';
 import useTeamService from '../../hooks/useTeamService';
 import { getPositionName, getPositionColor, extractArray, readTeamMoney } from '../../utils/helpers';
+import { invalidateAfterClausePurchase } from '../../utils/cacheInvalidation';
 
 import PlayerRow from './TeamPlayers/PlayerRow';
 import BuyoutFlow from './TeamPlayers/BuyoutFlow';
 import MarketListFlow from './TeamPlayers/MarketListFlow';
 import BidFlow from './TeamPlayers/BidFlow';
 import ShieldFlow from './TeamPlayers/ShieldFlow';
+import PaymentFlow from '../Clauses/PaymentFlow';
+import PaymentConfirmModal from '../Clauses/PaymentConfirmModal';
 
 const TeamPlayers = () => {
     const { teamId } = useParams();
@@ -52,6 +55,8 @@ const TeamPlayers = () => {
     const bidFlow = useModalFlow();
     const cancelBidFlow = useModalFlow();
     const shieldFlow = useModalFlow();
+    const clauseFlow = useModalFlow();
+    const [selectedClause, setSelectedClause] = useState(null);
 
     // Queries
     const { data: teamData, isLoading, error, refetch } = useQuery({
@@ -262,6 +267,79 @@ const TeamPlayers = () => {
         cancelBidFlow.confirm();
     }, [cancelBidFlow]);
 
+    const findUserTeamId = useCallback(() => {
+        const userTeam = standingsData.find(team => {
+            const teamUserId = team.userId || team.team?.userId || team.team?.manager?.id;
+            return teamUserId && user?.userId && teamUserId.toString() === user.userId.toString();
+        });
+        return userTeam?.id || userTeam?.team?.id || null;
+    }, [standingsData, user?.userId]);
+
+    const closeClausePayment = useCallback(() => {
+        clauseFlow.reset();
+        setSelectedClause(null);
+        setTeamMoney(null);
+    }, [clauseFlow]);
+
+    // Clausular = pagar la cláusula de rescisión de un jugador de OTRO
+    // manager (endpoint distinto de "Pujar", que es una oferta directa de
+    // mercado). Reutiliza PaymentFlow/PaymentConfirmModal de Cláusulas.
+    const handleClausePlayer = useCallback(async (player, playerTeam) => {
+        setSelectedClause({
+            playerTeamId: playerTeam.playerTeamId || playerTeam.id || player.id,
+            playerImage: player.images?.transparent?.['256x256'] || null,
+            playerName: player.nickname || player.name,
+            teamName: player.team?.name || 'N/D',
+            teamBadge: player.team?.badgeColor || null,
+            clausulaAmount: playerTeam.buyoutClause,
+        });
+        clauseFlow.open();
+
+        try {
+            const userTeamId = findUserTeamId();
+            if (!userTeamId) throw new Error('No se pudo encontrar tu equipo');
+            const moneyResponse = await fantasyAPI.getTeamMoney(userTeamId);
+            setTeamMoney(readTeamMoney(moneyResponse));
+        } catch (_error) {
+            // undefined = "no sabemos el saldo" (igual que el resto de flows):
+            // no bloquea el modal, PaymentFlow solo oculta el aviso de saldo.
+            setTeamMoney(undefined);
+        }
+    }, [clauseFlow, findUserTeamId]);
+
+    const handleConfirmClausePayment = useCallback(async () => {
+        if (!selectedClause) return;
+        clauseFlow.setProcessing(true);
+        try {
+            const response = await fantasyAPI.payBuyoutClause(
+                leagueId,
+                selectedClause.playerTeamId,
+                selectedClause.clausulaAmount
+            );
+
+            if (response && (response.status === 204 || response.status === 200)) {
+                const buyerTeamId = findUserTeamId();
+                if (buyerTeamId) {
+                    await invalidateAfterClausePurchase(queryClient, leagueId, buyerTeamId, teamId);
+                }
+                await refetch();
+
+                closeClausePayment();
+                toast.success('¡Cláusula pagada con éxito! El jugador ha sido fichado.', {
+                    duration: 4000,
+                    position: 'bottom-right',
+                });
+            }
+        } catch (error) {
+            const apiError = error.response?.data?.message || error.response?.data?.error;
+            const errorMessage = apiError ? `Error: ${apiError}` : (error.message || 'Error al pagar la cláusula. Inténtalo de nuevo.');
+            toast.error(errorMessage, { duration: 6000 });
+            closeClausePayment();
+        } finally {
+            clauseFlow.setProcessing(false);
+        }
+    }, [selectedClause, leagueId, teamId, queryClient, refetch, clauseFlow, findUserTeamId, closeClausePayment]);
+
     const handleShieldPlayer = useCallback(async (player, playerTeam) => {
         try {
             await fantasyAPI.checkPlayerShield(leagueId, playerTeam.playerTeamId || playerTeam.id);
@@ -388,6 +466,7 @@ const TeamPlayers = () => {
                                         onWithdrawFromMarket={handleWithdrawFromMarket}
                                         onBid={handleBidOnPlayer}
                                         onCancelBid={handleCancelBid}
+                                        onClausular={handleClausePlayer}
                                     />
                                 );
                             })}
@@ -464,6 +543,23 @@ const TeamPlayers = () => {
                 leagueId={leagueId}
                 refetch={refetch}
                 onReset={resetSelection}
+            />
+
+            {/* Clausular - pagar cláusula de rescisión de un jugador rival */}
+            <PaymentFlow
+                isOpen={clauseFlow.isOpen && !clauseFlow.isConfirming}
+                clause={selectedClause}
+                availableMoney={teamMoney}
+                onClose={closeClausePayment}
+                onContinue={() => clauseFlow.confirm()}
+            />
+
+            <PaymentConfirmModal
+                isOpen={clauseFlow.isConfirming}
+                clause={selectedClause}
+                isProcessing={clauseFlow.isProcessing}
+                onClose={closeClausePayment}
+                onConfirm={handleConfirmClausePayment}
             />
 
             <PlayerDetailModal

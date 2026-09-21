@@ -53,3 +53,27 @@ export const getClauseLockState = (clauseEndTime) => {
         timeRemaining: isOpen ? null : getClauseTimeRemaining(clauseEndTime),
     };
 };
+
+/**
+ * Desglose a nivel de SEGUNDO del tiempo restante de bloqueo, para countdowns
+ * en vivo (ver hooks/useClauseCountdown). `null` cuando ya está abierta (sin
+ * fecha de bloqueo, o la fecha ya pasó) — distinto de getClauseTimeRemaining,
+ * que solo baja a granularidad de minuto y no está pensado para ticar cada
+ * segundo.
+ */
+export const getClauseCountdown = (clauseEndTime) => {
+    if (!clauseEndTime) return null;
+    const diffMs = new Date(clauseEndTime).getTime() - Date.now();
+    if (diffMs <= 0) return null;
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const daySeconds = DAY_MS / 1000;
+    const hourSeconds = HOUR_MS / 1000;
+    return {
+        totalSeconds,
+        days: Math.floor(totalSeconds / daySeconds),
+        hours: Math.floor((totalSeconds % daySeconds) / hourSeconds),
+        minutes: Math.floor((totalSeconds % hourSeconds) / 60),
+        seconds: totalSeconds % 60,
+    };
+};

@@ -34,7 +34,8 @@ const Clauses = () => {
   const queryClient = useQueryClient();
 
   // Filter / sort state
-  const [showAll, setShowAll] = useState(false);
+  // 'available' (por defecto) = solo clausulables ya · 'all' = todas · 'locked' = solo bloqueadas
+  const [availabilityFilter, setAvailabilityFilter] = useState('available');
   const [sortBy, setSortBy] = useState('clauseValue');
   const [sortOrder, setSortOrder] = useState('desc');
   const [ownerFilter, setOwnerFilter] = useState('all');
@@ -128,13 +129,13 @@ const Clauses = () => {
             comparison = b.clausulaAmount - a.clausulaAmount;
         }
 
-        if (comparison === 0 && showAll && a.isLocked !== b.isLocked) {
+        if (comparison === 0 && availabilityFilter === 'all' && a.isLocked !== b.isLocked) {
           return a.isLocked ? 1 : -1;
         }
         return sortOrder === 'asc' ? -comparison : comparison;
       });
     },
-    [sortBy, sortOrder, showAll]
+    [sortBy, sortOrder, availabilityFilter]
   );
 
   // Fetch all team data and extract clauses
@@ -286,7 +287,7 @@ const Clauses = () => {
       setClausesData(sortedData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, sortOrder, showAll, ownerFilter, positionFilter]);
+  }, [sortBy, sortOrder, availabilityFilter, ownerFilter, positionFilter]);
 
   // Payment handlers
   const handlePayClause = useCallback(
@@ -405,13 +406,14 @@ const Clauses = () => {
   const filteredClauses = useMemo(
     () =>
       clausesData.filter((clause) => {
-        if (!showAll && clause.isLocked) return false;
+        if (availabilityFilter === 'available' && clause.isLocked) return false;
+        if (availabilityFilter === 'locked' && !clause.isLocked) return false;
         if (ownerFilter !== 'all' && clause.ownerName !== ownerFilter) return false;
         if (positionFilter !== 'all' && clause.positionId.toString() !== positionFilter)
           return false;
         return true;
       }),
-    [clausesData, showAll, ownerFilter, positionFilter]
+    [clausesData, availabilityFilter, ownerFilter, positionFilter]
   );
 
   const availableMoney = teamReady ? teamService.getAvailableMoney() : teamMoney;
@@ -428,7 +430,12 @@ const Clauses = () => {
             Cláusulas de Rescisión
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {filteredClauses.length} cláusulas {showAll ? 'totales' : 'disponibles'}
+            {filteredClauses.length} cláusulas{' '}
+            {availabilityFilter === 'all'
+              ? 'totales'
+              : availabilityFilter === 'locked'
+              ? 'bloqueadas'
+              : 'disponibles'}
             {ownerFilter !== 'all' && ` de ${ownerFilter}`}
             {positionFilter !== 'all' && ` - ${getPositionName(parseInt(positionFilter))}`}
             {clausesData.length > 0 && (
@@ -472,8 +479,8 @@ const Clauses = () => {
 
       {/* Filters and Controls */}
       <ClauseFilters
-        showAll={showAll}
-        setShowAll={setShowAll}
+        availabilityFilter={availabilityFilter}
+        setAvailabilityFilter={setAvailabilityFilter}
         ownerFilter={ownerFilter}
         setOwnerFilter={setOwnerFilter}
         positionFilter={positionFilter}
@@ -513,13 +520,17 @@ const Clauses = () => {
               <EmptyState
                 icon={Shield}
                 title={
-                  showAll
+                  availabilityFilter === 'all'
                     ? 'No hay cláusulas en la liga'
+                    : availabilityFilter === 'locked'
+                    ? 'No hay cláusulas bloqueadas'
                     : 'No hay cláusulas disponibles'
                 }
                 description={
-                  showAll
+                  availabilityFilter === 'all'
                     ? 'No se encontraron jugadores con cláusulas de rescisión'
+                    : availabilityFilter === 'locked'
+                    ? 'Ninguna cláusula está bloqueada ahora mismo'
                     : 'Todas las cláusulas están actualmente bloqueadas'
                 }
               />

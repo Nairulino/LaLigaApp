@@ -1,5 +1,6 @@
 import marketTrendsService from './marketTrendsService';
 import { mapSpecialNameForTrends } from '../utils/playerNameMatcher';
+import { setTrendNameOverride } from './trendNameOverrides';
 
 const cacheEntry = (overrides = {}) => ({
     nombre: 'vinicius junior',
@@ -76,6 +77,49 @@ describe('marketTrendsService.resolveTrendForPlayer', () => {
 
         // Mismo nombre pero buscándolo como portero (positionId 1) → no debe matchear
         expect(marketTrendsService.resolveTrendForPlayer({ nickname: 'Vinicius', positionId: 1 })).toBeNull();
+    });
+});
+
+describe('marketTrendsService.resolveTrendForPlayer + alias manual del usuario', () => {
+    afterEach(() => {
+        marketTrendsService.marketValuesCache = new Map();
+        localStorage.clear();
+        jest.restoreAllMocks();
+    });
+
+    test('el alias guardado por el usuario tiene prioridad sobre la cascada automática', () => {
+        const entry = cacheEntry({ nombre: 'adrian de la fuente', originalName: 'Adrián de la Fuente', posicion: 'defensa' });
+        marketTrendsService.marketValuesCache = new Map([['x', entry]]);
+        const cascadeSpy = jest.spyOn(marketTrendsService, 'getPlayerMarketTrend');
+
+        setTrendNameOverride('Dela', 'Adrián de la Fuente');
+        const trend = marketTrendsService.resolveTrendForPlayer({ nickname: 'Dela', positionId: 2 });
+
+        expect(trend).toBe(entry);
+        // Solo se llamó con el nombre del alias, nunca con "Dela" en crudo.
+        expect(cascadeSpy).toHaveBeenCalledWith('Adrián de la Fuente', 2, null);
+        expect(cascadeSpy).not.toHaveBeenCalledWith('Dela', 2, expect.anything());
+    });
+
+    test('si el alias guardado no encuentra nada, cae a la cascada normal', () => {
+        const entry = cacheEntry({ nombre: 'dela', originalName: 'Dela', posicion: 'defensa' });
+        marketTrendsService.marketValuesCache = new Map([['x', entry]]);
+
+        // Alias apunta a un nombre que ya no está en la caché de esta jornada.
+        setTrendNameOverride('Dela', 'Nombre Que No Existe');
+        const trend = marketTrendsService.resolveTrendForPlayer({ nickname: 'Dela', positionId: 2 });
+
+        expect(trend).toBe(entry);
+    });
+
+    test('sin alias guardado, el comportamiento es el de siempre', () => {
+        marketTrendsService.marketValuesCache = new Map([['x', cacheEntry()]]);
+        const spy = jest
+            .spyOn(marketTrendsService, 'getPlayerMarketTrend')
+            .mockReturnValueOnce(cacheEntry());
+
+        marketTrendsService.resolveTrendForPlayer({ nickname: 'Vini Jr.', positionId: 4 });
+        expect(spy).toHaveBeenCalledWith(mapSpecialNameForTrends('Vini Jr.'), 4, null);
     });
 });
 

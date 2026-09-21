@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { formatNumber, formatNumberWithDots, getPositionColor } from '../../utils/helpers';
 import teamService from '../../services/teamService';
 import { getClauseStatusColor } from '../../utils/clauseUtils';
+import FixTrendNameButton from '../Common/FixTrendNameButton';
 
 /**
  * PlayerListItem — single market card.
@@ -25,11 +26,16 @@ const PlayerListItem = ({
   setOfferChangeKey,
 }) => {
   const [isCanceling, setIsCanceling] = useState(false);
+  // Bump only to force a re-read of marketTrendsService después de guardar un
+  // alias manual (FixTrendNameButton): el trend no vive en estado de React.
+  const [, setTrendFixTick] = useState(0);
   const player = item.playerMaster;
   const isClausePlayer = item.discr === 'marketPlayerTeam';
   const expirationDate = new Date(item.expirationDate);
   const hoursLeft = Math.max(0, Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60)));
 
+  // Recalculado en cada render (no memoizado): basta con que trendFixTick
+  // fuerce un re-render tras guardar un alias para que esto lea el valor fresco.
   const trendData = marketTrendsService ? marketTrendsService.resolveTrendForPlayer(player) : null;
   const actualOwner = playerOwnershipService ? playerOwnershipService.getPlayerOwner(player.id) : null;
   const hasOffer = teamService.hasOffer(player.id);
@@ -181,12 +187,18 @@ const PlayerListItem = ({
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-gray-400 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />
                 Tendencia 24h:
               </span>
-              <span className="text-xs text-gray-500">Sin datos de tendencia</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Sin datos de tendencia</span>
+                <FixTrendNameButton
+                  player={player}
+                  onFixed={() => setTrendFixTick((t) => t + 1)}
+                />
+              </div>
             </div>
           )}
         </div>

@@ -17,6 +17,7 @@ import {
     mapSpecialNameForTrends,
 } from '../utils/playerNameMatcher';
 import { fetchMarketHtml, parseMarketData } from './marketTrendsScraper';
+import { getTrendNameOverride } from './trendNameOverrides';
 
 class MarketTrendsService {
     constructor() {
@@ -129,6 +130,20 @@ class MarketTrendsService {
         if (!displayName) return null;
 
         const teamName = player.team?.name || null;
+
+        // Alias guardado por el usuario desde la ficha del jugador (ver
+        // trendNameOverrides.js) tiene prioridad sobre la tabla estática de
+        // casos conocidos. Si el alias guardado ya no encuentra nada (p.ej.
+        // el jugador desapareció esa jornada de la fuente scrapeada), cae a
+        // la cascada normal de abajo en vez de devolver null directamente.
+        const userOverride = getTrendNameOverride(displayName);
+        if (userOverride) {
+            const overrideTrend =
+                this.getPlayerMarketTrend(userOverride, player.positionId, teamName) ||
+                this.getPlayerMarketTrend(userOverride, player.positionId, null);
+            if (overrideTrend) return overrideTrend;
+        }
+
         const primaryName = mapSpecialNameForTrends(displayName);
         const secondaryName = player.name && player.nickname && player.name !== player.nickname
             ? mapSpecialNameForTrends(player.name)

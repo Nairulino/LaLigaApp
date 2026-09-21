@@ -844,12 +844,28 @@ export const mapSpecialNameForTrends = (name) => {
     // Junior name variants (accent handling) - map to existing trend data names
     ['junior r.', 'Junior'],  // "Júnior R." → "Junior" (exists in trends)
     ['junior r', 'Junior'],   // "Junior R" → "Junior" (exists in trends)
-    ['junior', 'Junior']      // Keep as is
-    // NOTE: multi-name identity cases (Luiz Junior ↔ Júnior R., Thomas Teye ↔
-    // Thomas Partey, Jonny Castro ↔ Jonny Otto, Adrián de la Fuente ↔ Dela)
-    // are intentionally NOT hardcoded here — the leftover-sweep pass in
-    // lineupBuilder.js pairs them by elimination within the team+position
-    // bucket, which is roster-change-proof.
+    ['junior', 'Junior'],     // Keep as is
+
+    // Casos LaLiga ↔ futbolfantasy sin apellido/apodo compartido: ni el
+    // escaneo por subcadena ni el de apellido de findTrendCacheMatch pueden
+    // emparejarlos, así que necesitan alias explícito. Reportados por el
+    // dueño de la liga comparando ambas fuentes a mano.
+    ['jonny otto', 'Jonny Castro'],
+    ['dela', 'Adrián de la Fuente'],
+    ['rafita', 'Rafa Garrido'],
+    ['ez abde', 'Abde Ezzalzouli'],
+    ['protesoni', 'Carlos Benavidez'],
+    // NOTE: otros casos de identidad multi-nombre (Luiz Junior ↔ Júnior R.,
+    // Thomas Teye ↔ Thomas Partey) siguen sin hardcodear aquí a propósito —
+    // el leftover-sweep de lineupBuilder.js los empareja por eliminación
+    // dentro del bucket equipo+posición de UN once probable ya scrapeado, así
+    // que es robusto a cambios de plantilla. Esa técnica NO aplica a esta
+    // función: mapSpecialNameForTrends alimenta findTrendCacheMatch, que
+    // busca en la caché GLOBAL de mercado sin ningún bucket de plantilla que
+    // reducir por eliminación, así que un caso sin apellido compartido
+    // necesita el alias explícito aquí para no quedarse en "Sin datos de
+    // tendencia". Ver también trendNameOverrides.js: desde la ficha de
+    // jugador se pueden añadir alias equivalentes sin tocar código.
   ]);
 
   return mappings.get(normalized) || name;

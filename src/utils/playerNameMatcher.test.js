@@ -4,6 +4,7 @@ import {
     extractMainSurname,
     findPlayerByNameAndPosition,
     findTrendCacheMatch,
+    mapSpecialNameForTrends,
 } from './playerNameMatcher';
 
 const ROSTER = [
@@ -312,5 +313,38 @@ describe('findTrendCacheMatch', () => {
     test('surname match prefers the entry whose team matches', () => {
         const result = findTrendCacheMatch('Pablo Hernández', cache, { playerTeam: 'Real Betis', playerPosition: 2 });
         expect(result?.marker).toBe('hernandez-betis');
+    });
+
+    // Regression: LaLiga's API shows "Jonny Otto" (2º apellido), futbolfantasy
+    // scrapes "Jonny Castro" (1º apellido). Sin apellido compartido, ni el
+    // nivel exacto ni el de apellido de findTrendCacheMatch los empareja, así
+    // que mapSpecialNameForTrends necesita un alias explícito.
+    test('Jonny Otto/Castro: no shared surname means no match without the alias', () => {
+        const jonnyCache = new Map([
+            ['x', entry('jonny castro', 'girona', 'defensa', 'Jonny Castro', 'jonny')],
+        ]);
+        expect(findTrendCacheMatch('Jonny Otto', jonnyCache, { playerPosition: 2 })).toBeNull();
+    });
+
+    test('mapSpecialNameForTrends resolves Jonny Otto to the futbolfantasy alias', () => {
+        expect(mapSpecialNameForTrends('Jonny Otto')).toBe('Jonny Castro');
+
+        const jonnyCache = new Map([
+            ['x', entry('jonny castro', 'girona', 'defensa', 'Jonny Castro', 'jonny')],
+        ]);
+        const aliased = mapSpecialNameForTrends('Jonny Otto');
+        const result = findTrendCacheMatch(aliased, jonnyCache, { playerPosition: 2 });
+        expect(result?.marker).toBe('jonny');
+    });
+
+    // Más casos LaLiga ↔ futbolfantasy sin apellido/apodo compartido,
+    // reportados por el dueño de la liga.
+    test.each([
+        ['Dela', 'Adrián de la Fuente'],
+        ['Rafita', 'Rafa Garrido'],
+        ['Ez Abde', 'Abde Ezzalzouli'],
+        ['Protesoni', 'Carlos Benavidez'],
+    ])('mapSpecialNameForTrends resolves %s to %s', (laligaName, futbolfantasyName) => {
+        expect(mapSpecialNameForTrends(laligaName)).toBe(futbolfantasyName);
     });
 });

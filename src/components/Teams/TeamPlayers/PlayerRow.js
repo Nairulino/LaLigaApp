@@ -22,6 +22,9 @@ const PlayerRow = ({
     onBid,
     onCancelBid,
     onClausular,
+    leagueId,
+    buyerTeamId,
+    sellerTeamId,
 }) => {
     const player = playerTeam.playerMaster;
     if (!player) return null;
@@ -308,6 +311,9 @@ const PlayerRow = ({
                             player={player}
                             playerTeam={playerTeam}
                             onClausular={onClausular}
+                            leagueId={leagueId}
+                            buyerTeamId={buyerTeamId}
+                            sellerTeamId={sellerTeamId}
                         />
                     </div>
                 )}

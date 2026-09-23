@@ -2,6 +2,7 @@ import React from 'react';
 import { Shield, Clock, Unlock } from 'lucide-react';
 import { formatNumberWithDots } from '../../../utils/helpers';
 import useClauseCountdown from '../../../hooks/useClauseCountdown';
+import AutoClauseToggle from '../../Common/AutoClauseToggle';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -16,8 +17,9 @@ const formatCountdown = (countdown) => {
  * se desbloquea. El botón está deshabilitado mientras cuenta y se activa solo
  * en el tick exacto en que useClauseCountdown pasa a isOpen=true.
  */
-const ClauseBuyoutButton = ({ player, playerTeam, onClausular }) => {
+const ClauseBuyoutButton = ({ player, playerTeam, onClausular, leagueId, buyerTeamId, sellerTeamId }) => {
   const countdown = useClauseCountdown(playerTeam.buyoutClauseLockedEndTime);
+  const playerTeamId = playerTeam.playerTeamId || playerTeam.id || player.id;
 
   return (
     <div className="space-y-1.5">
@@ -64,6 +66,18 @@ const ClauseBuyoutButton = ({ player, playerTeam, onClausular }) => {
           </>
         )}
       </div>
+
+      {!countdown.isOpen && (
+        <AutoClauseToggle
+          leagueId={leagueId}
+          playerTeamId={playerTeamId}
+          playerName={player.nickname || player.name}
+          clausulaAmount={playerTeam.buyoutClause}
+          unlockAt={playerTeam.buyoutClauseLockedEndTime}
+          buyerTeamId={buyerTeamId}
+          sellerTeamId={sellerTeamId}
+        />
+      )}
     </div>
   );
 };

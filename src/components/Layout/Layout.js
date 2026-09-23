@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import useSearch from '../../hooks/useSearch';
 import { fantasyAPI } from '../../services/api';
 import ApiStatus from '../Common/ApiStatus';
+import AutoClauseWatcher from '../Common/AutoClauseWatcher';
 import SearchResults from '../Common/SearchResults';
 import UpdateChecker from '../Common/UpdateChecker';
 import ChangelogModal from '../Common/ChangelogModal';
@@ -605,6 +606,7 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg overflow-x-hidden">
       <ApiStatus />
+      <AutoClauseWatcher />
 
       <aside
         id="primary-sidebar"

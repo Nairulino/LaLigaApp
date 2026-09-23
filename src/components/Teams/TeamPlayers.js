@@ -275,6 +275,10 @@ const TeamPlayers = () => {
         return userTeam?.id || userTeam?.team?.id || null;
     }, [standingsData, user?.userId]);
 
+    // Tu equipo, memoizado: lo necesita el clausulazo automático (ver
+    // AutoClauseToggle) en cada fila, no solo al pulsar "Clausular".
+    const buyerTeamId = useMemo(() => findUserTeamId(), [findUserTeamId]);
+
     const closeClausePayment = useCallback(() => {
         clauseFlow.reset();
         setSelectedClause(null);
@@ -467,6 +471,9 @@ const TeamPlayers = () => {
                                         onBid={handleBidOnPlayer}
                                         onCancelBid={handleCancelBid}
                                         onClausular={handleClausePlayer}
+                                        leagueId={leagueId}
+                                        buyerTeamId={buyerTeamId}
+                                        sellerTeamId={teamId}
                                     />
                                 );
                             })}

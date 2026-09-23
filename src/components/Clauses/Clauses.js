@@ -403,6 +403,17 @@ const Clauses = () => {
     [clausesData]
   );
 
+  // Tu equipo, memoizado: lo necesita el clausulazo automático (ver
+  // AutoClauseToggle) en cada tarjeta, no solo al pulsar "Pagar cláusula".
+  const buyerTeamId = useMemo(() => {
+    const standingsArray = extractArray(standings);
+    const userTeam = standingsArray.find((team) => {
+      const teamUserId = team.userId || team.team?.userId || team.team?.manager?.id;
+      return teamUserId && user?.userId && teamUserId.toString() === user.userId.toString();
+    });
+    return userTeam?.id || userTeam?.team?.id || null;
+  }, [standings, user?.userId]);
+
   const filteredClauses = useMemo(
     () =>
       clausesData.filter((clause) => {
@@ -512,6 +523,8 @@ const Clauses = () => {
                   clause={clause}
                   onClick={() => handlePlayerClick(clause)}
                   onPayClause={() => handlePayClause(clause)}
+                  leagueId={leagueId}
+                  buyerTeamId={buyerTeamId}
                 />
               ))}
             </div>

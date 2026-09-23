@@ -3,12 +3,13 @@ import { motion } from '../../utils/motionShim';
 import { Shield, Clock, TrendingUp, User, Euro } from 'lucide-react';
 import { formatNumber, formatNumberWithDots, getPositionColor } from '../../utils/helpers';
 import ProgressiveImage from '../Common/ProgressiveImage';
+import AutoClauseToggle from '../Common/AutoClauseToggle';
 import { getClauseStatusColor, getClauseTimeRemaining } from '../../utils/clauseUtils';
 
 const getPositionBackgroundColor = () => 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800';
 
 const ClauseCard = React.memo(
-  ({ clause, onClick, onPayClause }) => {
+  ({ clause, onClick, onPayClause, leagueId, buyerTeamId }) => {
     return (
       <motion.div
         className={`hover-scale overflow-hidden cursor-pointer transition-all duration-200 rounded-lg border border-gray-200 dark:border-gray-700 ${
@@ -167,6 +168,20 @@ const ClauseCard = React.memo(
                   </div>
                 )}
               </div>
+
+              {clause.unlockTime && (
+                <div className="mt-2">
+                  <AutoClauseToggle
+                    leagueId={leagueId}
+                    playerTeamId={clause.playerTeamId}
+                    playerName={clause.playerName}
+                    clausulaAmount={clause.clausulaAmount}
+                    unlockAt={clause.unlockTime}
+                    buyerTeamId={buyerTeamId}
+                    sellerTeamId={clause.teamId}
+                  />
+                </div>
+              )}
             </div>
           )}
 

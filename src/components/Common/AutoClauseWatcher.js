@@ -19,7 +19,7 @@ const AutoClauseWatcher = () => {
   queryClientRef.current = queryClient;
 
   useEffect(() => {
-    const handleResult = ({ item, outcome, money, error }) => {
+    const handleResult = ({ item, outcome, money, amount, amountChanged, newAmount, error }) => {
       switch (outcome) {
         case 'success':
           invalidateAfterClausePurchase(
@@ -28,16 +28,35 @@ const AutoClauseWatcher = () => {
             item.buyerTeamId,
             item.sellerTeamId
           );
-          toast.success(`⚡ Clausulazo automático: ${item.playerName} fichado al desbloquearse`, {
-            duration: 6000,
-          });
+          toast.success(
+            `⚡ Clausulazo automático: ${item.playerName} fichado al desbloquearse` +
+              (amountChanged ? ` por ${formatCurrency(amount)} (la cláusula había cambiado)` : ''),
+            { duration: 6000 }
+          );
           break;
 
         case 'insufficient_funds':
           toast.error(
             `No se pudo clausular a ${item.playerName} automáticamente: saldo insuficiente` +
-              (typeof money === 'number' ? ` (tienes ${formatCurrency(money)}, faltan)` : ''),
-            { duration: 7000 }
+              (typeof money === 'number' ? ` (tienes ${formatCurrency(money)}` : '') +
+              (typeof amount === 'number' ? `, hacían falta ${formatCurrency(amount)})` : ')') +
+              (amountChanged ? ' — la cláusula había subido desde que la programaste' : ''),
+            { duration: 8000 }
+          );
+          break;
+
+        case 'player_gone':
+          toast.error(
+            `No se pudo clausular a ${item.playerName}: ya no está en ese equipo (otro manager se adelantó)`,
+            { duration: 8000 }
+          );
+          break;
+
+        case 'rescheduled':
+          toast(
+            `${item.playerName}: la cláusula se ha vuelto a bloquear (blindaje o subida). ` +
+              `Reprogramado a ${formatCurrency(newAmount)} — se sigue intentando.`,
+            { icon: '🔄', duration: 8000 }
           );
           break;
 

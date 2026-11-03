@@ -138,11 +138,34 @@ export const formatDate = (date, format = 'short') => {
     if (format === 'time') {
         return d.toLocaleTimeString('es-ES', {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            second: '2-digit'
         });
     }
 
     return d.toLocaleString('es-ES');
+};
+
+// Fecha + hora con precisión de segundo. `dateParts` elige qué partes de la
+// fecha mostrar (day, month, year, weekday...); la hora siempre va hh:mm:ss.
+export const formatDateTime = (date, dateParts = {}) => {
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('es-ES', {
+        ...dateParts,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+};
+
+// Cuenta atrás "2d 05:12:09" / "05:12:09" a partir del desglose de
+// getCountdown (utils/clauseUtils).
+export const formatCountdown = ({ days = 0, hours = 0, minutes = 0, seconds = 0 } = {}) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    const clock = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    return days > 0 ? `${days}d ${clock}` : clock;
 };
 
 // Calcular porcentaje de cambio
@@ -151,16 +174,30 @@ export const calculatePercentageChange = (oldValue, newValue) => {
     return ((newValue - oldValue) / oldValue) * 100;
 };
 
-// Obtener estado del jugador
-export const getPlayerStatus = (status) => {
-    const statuses = {
-        injured: {label: 'Lesionado', icon: '🤕', color: 'text-red-500'},
-        suspended: {label: 'Sancionado', icon: '🔴', color: 'text-red-500'},
-        doubt: {label: 'Duda', icon: '❓', color: 'text-yellow-500'},
-        available: {label: 'Disponible', icon: '✅', color: 'text-green-500'}
-    };
+// Estado del jugador (playerStatus del API). La API y el resto de fuentes no
+// usan siempre la misma clave, así que se normaliza vía alias. Devuelve null
+// cuando el jugador está disponible: los consumidores solo pintan incidencias.
+const PLAYER_STATUSES = {
+    injured: {key: 'injured', label: 'Lesionado', icon: '🤕', color: 'text-red-500', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'},
+    suspended: {key: 'suspended', label: 'Sancionado', icon: '🟥', color: 'text-red-500', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'},
+    doubt: {key: 'doubt', label: 'Duda', icon: '❓', color: 'text-yellow-500', badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'},
+    out_of_league: {key: 'out_of_league', label: 'Fuera de la liga', icon: '🚫', color: 'text-gray-500', badge: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'},
+};
 
-    return statuses[status] || statuses.available;
+const PLAYER_STATUS_ALIASES = {
+    injured: 'injured',
+    suspended: 'suspended',
+    sanctioned: 'suspended',
+    doubt: 'doubt',
+    doubtful: 'doubt',
+    out_of_league: 'out_of_league',
+    outofleague: 'out_of_league',
+};
+
+export const getPlayerStatus = (status) => {
+    if (!status) return null;
+    const key = PLAYER_STATUS_ALIASES[String(status).toLowerCase()];
+    return key ? PLAYER_STATUSES[key] : null;
 };
 
 // Decodificar el payload de un JWT (sin verificar la firma)

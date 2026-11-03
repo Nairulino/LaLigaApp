@@ -1,4 +1,4 @@
-import { getClauseTimeRemaining, getClauseStatusColor, isClauseExpiringSoon, getClauseLockState } from './clauseUtils';
+import { getClauseTimeRemaining, getClauseStatusColor, isClauseExpiringSoon, getClauseLockState, getCountdown } from './clauseUtils';
 
 const hoursFromNow = (h) => new Date(Date.now() + h * 60 * 60 * 1000).toISOString();
 
@@ -61,5 +61,20 @@ describe('getClauseLockState', () => {
         expect(state.isOpen).toBe(false);
         expect(state.expiringSoon).toBe(false);
         expect(state.timeRemaining).toMatch(/^2d 2h$/);
+    });
+});
+
+describe('getCountdown', () => {
+    test('desglosa días, horas, minutos y segundos', () => {
+        const now = Date.UTC(2026, 10, 3, 12, 0, 0);
+        const end = now + ((((1 * 24 + 2) * 60 + 3) * 60 + 4) * 1000);
+        expect(getCountdown(end, now)).toEqual({
+            totalSeconds: 93784, days: 1, hours: 2, minutes: 3, seconds: 4,
+        });
+    });
+
+    test('null sin fecha o con la fecha ya pasada', () => {
+        expect(getCountdown(null)).toBeNull();
+        expect(getCountdown(Date.now() - 1000)).toBeNull();
     });
 });

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Coins, Clock } from 'lucide-react';
 import teamService from '../../services/teamService';
 import { formatNumberWithDots, extractArray } from '../../utils/helpers';
+import Countdown from '../Common/Countdown';
 
 /**
  * Resumen "Mis pujas": pujas activas, dinero comprometido y margen real.
@@ -29,7 +30,7 @@ const MyBidsSummary = ({ marketData, offersVersion: _offersVersion, teamReady })
       const hoursLeft = expirationDate
         ? Math.max(0, Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60)))
         : null;
-      return { ...offer, hoursLeft };
+      return { ...offer, hoursLeft, expirationDate };
     }).sort((a, b) => (a.hoursLeft ?? Infinity) - (b.hoursLeft ?? Infinity));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketData, _offersVersion]);
@@ -84,7 +85,7 @@ const MyBidsSummary = ({ marketData, offersVersion: _offersVersion, teamReady })
                 {bid.hoursLeft !== null && (
                   <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                     <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-                    {bid.hoursLeft}h
+                    <Countdown endTime={bid.expirationDate} fallback="Expirado" />
                   </span>
                 )}
               </span>

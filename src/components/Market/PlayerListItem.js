@@ -5,6 +5,8 @@ import { formatNumber, formatNumberWithDots, getPositionColor } from '../../util
 import teamService from '../../services/teamService';
 import { getClauseStatusColor } from '../../utils/clauseUtils';
 import FixTrendNameButton from '../Common/FixTrendNameButton';
+import Countdown from '../Common/Countdown';
+import PlayerStatusBadge from '../Common/PlayerStatusBadge';
 
 /**
  * PlayerListItem — single market card.
@@ -31,8 +33,6 @@ const PlayerListItem = ({
   const [, setTrendFixTick] = useState(0);
   const player = item.playerMaster;
   const isClausePlayer = item.discr === 'marketPlayerTeam';
-  const expirationDate = new Date(item.expirationDate);
-  const hoursLeft = Math.max(0, Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60)));
 
   // Recalculado en cada render (no memoizado): basta con que trendFixTick
   // fuerce un re-render tras guardar un alias para que esto lea el valor fresco.
@@ -93,7 +93,7 @@ const PlayerListItem = ({
           </span>
           <span className="badge bg-red-900 text-white flex items-center">
             <Clock className="w-3 h-3 mr-1" />
-            {hoursLeft}h
+            <Countdown endTime={item.expirationDate} fallback="Expirado" />
           </span>
         </div>
 
@@ -117,8 +117,9 @@ const PlayerListItem = ({
       {/* Player Info */}
       <div className="p-4 space-y-3">
         <div>
-          <h3 className="font-semibold text-gray-900 dark:text-white">
+          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
             {player.nickname || player.name}
+            <PlayerStatusBadge status={player.playerStatus} compact />
           </h3>
           {(() => {
             const team = player.team || {};

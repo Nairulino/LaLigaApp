@@ -55,15 +55,15 @@ export const getClauseLockState = (clauseEndTime) => {
 };
 
 /**
- * Desglose a nivel de SEGUNDO del tiempo restante de bloqueo, para countdowns
- * en vivo (ver hooks/useClauseCountdown). `null` cuando ya está abierta (sin
- * fecha de bloqueo, o la fecha ya pasó) — distinto de getClauseTimeRemaining,
+ * Desglose a nivel de SEGUNDO del tiempo restante hasta `endTime` (bloqueo de
+ * cláusula, expiración de mercado...), para countdowns en vivo (ver
+ * hooks/useCountdown). `null` sin fecha o si la fecha ya pasó — distinto de getClauseTimeRemaining,
  * que solo baja a granularidad de minuto y no está pensado para ticar cada
  * segundo.
  */
-export const getClauseCountdown = (clauseEndTime) => {
-    if (!clauseEndTime) return null;
-    const diffMs = new Date(clauseEndTime).getTime() - Date.now();
+export const getCountdown = (endTime, now = Date.now()) => {
+    if (!endTime) return null;
+    const diffMs = new Date(endTime).getTime() - now;
     if (diffMs <= 0) return null;
 
     const totalSeconds = Math.floor(diffMs / 1000);
@@ -77,3 +77,6 @@ export const getClauseCountdown = (clauseEndTime) => {
         seconds: totalSeconds % 60,
     };
 };
+
+/** Alias histórico de getCountdown para las cláusulas. */
+export const getClauseCountdown = (clauseEndTime) => getCountdown(clauseEndTime);

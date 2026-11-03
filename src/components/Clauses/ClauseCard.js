@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from '../../utils/motionShim';
 import { Shield, Clock, TrendingUp, User, Euro } from 'lucide-react';
-import { formatNumber, formatNumberWithDots, getPositionColor } from '../../utils/helpers';
+import { formatNumber, formatNumberWithDots, getPositionColor, formatDateTime } from '../../utils/helpers';
 import ProgressiveImage from '../Common/ProgressiveImage';
 import AutoClauseToggle from '../Common/AutoClauseToggle';
-import { getClauseStatusColor, getClauseTimeRemaining } from '../../utils/clauseUtils';
+import { getClauseStatusColor } from '../../utils/clauseUtils';
+import Countdown from '../Common/Countdown';
 
 const getPositionBackgroundColor = () => 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800';
 
@@ -152,18 +153,16 @@ const ClauseCard = React.memo(
                     Se libera en
                   </span>
                   <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                    {getClauseTimeRemaining(clause.unlockTime, { noTimeValue: 'Disponible' })}
+                    <Countdown endTime={clause.unlockTime} fallback="Disponible" />
                   </span>
                 </div>
                 {clause.unlockTime && (
                   <div className="text-xs text-red-500 dark:text-red-400 mt-1">
                     Disponible:{' '}
-                    {clause.unlockTime.toLocaleString('es-ES', {
+                    {formatDateTime(clause.unlockTime, {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
                     })}
                   </div>
                 )}

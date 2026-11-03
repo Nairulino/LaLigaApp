@@ -225,6 +225,12 @@ class PlayerOwnershipService {
     return this.ownershipData.get(String(playerId)) || null;
   }
 
+  // True si el mapa de dueños ya está cargado para esta liga (aunque esté
+  // algo viejo): permite consultas síncronas sin esperar a initialize().
+  isReadyFor(leagueId) {
+    return this.isInitialized && this.currentLeagueId === leagueId;
+  }
+
   // Verificar si los datos están actualizados
   needsUpdate() {
     if (!this.isInitialized || !this.lastUpdate) {

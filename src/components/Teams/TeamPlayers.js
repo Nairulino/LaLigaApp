@@ -14,7 +14,7 @@ import teamService from '../../services/teamService';
 import useModalFlow from '../../hooks/useModalFlow';
 import useMarketTrends from '../../hooks/useMarketTrends';
 import useTeamService from '../../hooks/useTeamService';
-import { getPositionName, getPositionColor, extractArray, readTeamMoney } from '../../utils/helpers';
+import { getPositionName, getPositionColor, extractArray, readTeamMoney, formatDateTime } from '../../utils/helpers';
 import { invalidateAfterClausePurchase } from '../../utils/cacheInvalidation';
 
 import PlayerRow from './TeamPlayers/PlayerRow';
@@ -156,25 +156,13 @@ const TeamPlayers = () => {
         if (!expirationDate) return null;
 
         const expiry = new Date(expirationDate);
-        const diffMs = expiry - new Date();
-        if (diffMs <= 0) return { expired: true, timeLeft: 'Expirado' };
+        if (expiry - new Date() <= 0) return { expired: true };
 
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        let timeLeft;
-        if (diffDays > 0) timeLeft = `${diffDays}d ${diffHours}h`;
-        else if (diffHours > 0) timeLeft = `${diffHours}h ${diffMinutes}m`;
-        else timeLeft = `${diffMinutes}m`;
-
+        // El tiempo restante lo pinta <Countdown> en vivo a partir de expirationDate.
         return {
             expired: false,
-            timeLeft,
             expirationDate: expiry,
-            formattedDate: expiry.toLocaleString('es-ES', {
-                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-            })
+            formattedDate: formatDateTime(expiry, { day: 'numeric', month: 'short' })
         };
     }, [getPlayerMarketData]);
 

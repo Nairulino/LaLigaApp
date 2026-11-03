@@ -11,11 +11,13 @@ import useSearch from '../../hooks/useSearch';
 import { fantasyAPI } from '../../services/api';
 import ApiStatus from '../Common/ApiStatus';
 import AutoClauseWatcher from '../Common/AutoClauseWatcher';
-import SearchResults from '../Common/SearchResults';
+import SearchResults, { playerOwnerLabel } from '../Common/SearchResults';
 import UpdateChecker from '../Common/UpdateChecker';
 import ChangelogModal from '../Common/ChangelogModal';
 import PairDeviceModal from './PairDeviceModal';
+import PlayerStatusBadge from '../Common/PlayerStatusBadge';
 import updateService from '../../services/updateService';
+import playerOwnershipService from '../../services/playerOwnershipService';
 import { sanitizeSearchTerm } from '../../utils/validation';
 import { setImageFallback, getPositionName, extractArray, formatCurrencyCompact as formatCurrency } from '../../utils/helpers';
 import MobileNav from './MobileNav';
@@ -219,7 +221,7 @@ const SECTION_DEFS = [
   {
     type: 'player', label: 'Jugadores',
     href: (i) => `/players?search=${encodeURIComponent(i.name)}`,
-    sub: (i) => `${i.team} • ${i.position}`,
+    sub: (i) => [i.team, i.position, playerOwnerLabel(i)].filter(Boolean).join(' • '),
     meta: (i) => (i.marketValue ? `${i.marketValue}€` : null),
   },
   {
@@ -259,7 +261,10 @@ const MobileSearchResultsList = React.memo(function MobileSearchResultsList({ se
                 <button key={`${section.type}-${item.id || index}`} onClick={() => onNavigate(section.href(item))} className={ROW_BTN}>
                   <div className="flex-shrink-0">{renderAvatar(item)}</div>
                   <div className="flex-1 min-w-0">
-                    <p className={ROW_TITLE}>{item.name}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className={`${ROW_TITLE} min-w-0`}>{item.name}</p>
+                      {item.playerStatus && <PlayerStatusBadge status={item.playerStatus} compact />}
+                    </div>
                     <p className={ROW_SUB}>{section.sub(item)}</p>
                   </div>
                   {meta && <div className={ROW_META}>{meta}</div>}
@@ -323,6 +328,7 @@ const runCrossEntitySearch = async (query, leagueId, queryClient) => {
       position: getPositionName(p.positionId),
       marketValue: p.marketValue ? formatCurrency(p.marketValue) : null,
       positionId: p.positionId, images: p.images,
+      playerStatus: p.playerStatus || null,
     }))
   );
 
@@ -349,7 +355,19 @@ const runCrossEntitySearch = async (query, leagueId, queryClient) => {
     );
   } catch { /* ignore */ }
 
-  return out;
+  return withPlayerOwners(out, leagueId);
+};
+
+// Añade el manager dueño a los resultados de jugador si el mapa de dueños ya
+// está cargado para la liga. Si no, se dejan sin resolver y el efecto de
+// búsqueda los re-enriquece cuando termina de cargar (sin bloquear).
+const withPlayerOwners = (results, leagueId) => {
+  if (!playerOwnershipService.isReadyFor(leagueId)) return results;
+  return results.map((r) => {
+    if (r.type !== 'player') return r;
+    const owner = playerOwnershipService.getPlayerOwner(r.id);
+    return { ...r, ownerResolved: true, ownerName: owner?.ownerName || null };
+  });
 };
 
 // ---------- server link helpers ----------
@@ -538,7 +556,22 @@ const Layout = ({ children }) => {
     setShowSearchResults(true);
     let cancelled = false;
     runCrossEntitySearch(trimmed, leagueId, queryClient)
-      .then((res) => { if (!cancelled) setSearchResults(res); })
+      .then((res) => {
+        if (cancelled) return;
+        setSearchResults(res);
+        if (!leagueId || playerOwnershipService.isReadyFor(leagueId)) return;
+        if (!res.some((r) => r.type === 'player')) return;
+        // Primera búsqueda sin dueños cargados: se pintan los resultados ya y
+        // el manager aparece en cuanto termina el recorrido de plantillas
+        // (misma query compartida que Mercado/Jugadores).
+        queryClient.fetchQuery({
+          queryKey: ['playerOwnershipInit', leagueId],
+          queryFn: () => playerOwnershipService.initialize(leagueId),
+          staleTime: 10 * 60 * 1000,
+        })
+          .then(() => { if (!cancelled) setSearchResults(withPlayerOwners(res, leagueId)); })
+          .catch(() => { /* sin dueños: se queda la búsqueda tal cual */ });
+      })
       .catch(() => { if (!cancelled) setSearchResults([]); })
       .finally(() => { if (!cancelled) setIsSearching(false); });
     return () => { cancelled = true; };

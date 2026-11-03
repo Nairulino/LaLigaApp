@@ -9,6 +9,7 @@ import { formatNumber, formatNumberWithDots, getPositionName, getPositionColor }
 import LoadingSpinner from '../Common/LoadingSpinner';
 import ErrorDisplay from '../Common/ErrorDisplay';
 import PlayerDetailModal from '../Common/PlayerDetailModal';
+import PlayerStatusBadge from '../Common/PlayerStatusBadge';
 import marketTrendsService from '../../services/marketTrendsService';
 import playerOwnershipService from '../../services/playerOwnershipService';
 import useMarketTrends from '../../hooks/useMarketTrends';
@@ -75,8 +76,9 @@ const PlayerGridCard = React.memo(function PlayerGridCard({ player }) {
       <div className="p-4 space-y-3">
         {/* Name & Team */}
         <div>
-          <h3 className="font-semibold text-gray-900 dark:text-white">
+          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
             {player.nickname || player.name}
+            <PlayerStatusBadge status={player.playerStatus} compact />
           </h3>
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <span>{player.team?.name}</span>

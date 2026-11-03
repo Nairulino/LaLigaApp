@@ -10,7 +10,7 @@ import teamService from '../../services/teamService';
 import { mapSpecialNameForTrends, findPlayerByNameAndPosition } from '../../utils/playerNameMatcher';
 import { validateClauseAmount } from '../../utils/validation';
 import { invalidateAfterClausePurchase } from '../../utils/cacheInvalidation';
-import { getPositionName, extractArray, readTeamMoney } from '../../utils/helpers';
+import { getPositionName, extractArray, readTeamMoney, formatDate } from '../../utils/helpers';
 import { fetchAllTeamsData, extractTeamPlayers } from '../../utils/fetchAllTeamsData';
 
 import LoadingSpinner from '../Common/LoadingSpinner';
@@ -457,7 +457,7 @@ const Clauses = () => {
             )}
             {lastFetchTime && (
               <span className="ml-2 text-xs">
-                • Actualizado: {new Date(lastFetchTime).toLocaleTimeString()}
+                • Actualizado: {formatDate(lastFetchTime, 'time')}
               </span>
             )}
           </p>
@@ -475,7 +475,7 @@ const Clauses = () => {
             }`}
             title={
               lastFetchTime
-                ? `Última actualización: ${new Date(lastFetchTime).toLocaleTimeString()}`
+                ? `Última actualización: ${formatDate(lastFetchTime, 'time')}`
                 : 'Actualizar datos'
             }
           >

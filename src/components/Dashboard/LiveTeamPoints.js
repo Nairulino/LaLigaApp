@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Radio } from 'lucide-react';
 import { fantasyAPI } from '../../services/api';
-import { extractArray } from '../../utils/helpers';
+import { extractArray, formatDate } from '../../utils/helpers';
 import { normalizePlayerName } from '../../utils/playerNameMatcher';
 import { flattenPositionKeyedPlayers } from '../../utils/formationUtils';
 
@@ -81,7 +81,7 @@ const LiveTeamPoints = ({ teamId, matches, weekNumber }) => {
           <Radio className="w-5 h-5 text-green-500 animate-pulse" aria-hidden="true" />
           <h3 className="font-semibold text-gray-900 dark:text-white">Mi equipo en vivo</h3>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {dataUpdatedAt ? `act. ${new Date(dataUpdatedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : ''}
+            {dataUpdatedAt ? `act. ${formatDate(dataUpdatedAt, 'time')}` : ''}
           </span>
         </div>
         <span className="text-2xl font-bold text-green-600 dark:text-green-400">{total} pts</span>

@@ -1,5 +1,6 @@
 import React from 'react';
 import ProgressiveImage from './ProgressiveImage';
+import PlayerStatusBadge from './PlayerStatusBadge';
 import { BellRing } from 'lucide-react';
 import { useAlertStore } from '../../stores/alertStore';
 
@@ -70,8 +71,9 @@ const PlayerCard = ({ player, onClick, showAlertIndicator = true }) => {
           )}
         </div>
         <div className="flex-1">
-          <h4 className="font-semibold text-gray-900 dark:text-white">
+          <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
             {player?.name || player?.nickname || 'Jugador'}
+            <PlayerStatusBadge status={player?.playerStatus} compact />
           </h4>
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <span>{player?.position || 'Posición'}</span>

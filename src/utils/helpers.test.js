@@ -8,6 +8,9 @@ import {
     extractArray,
     isTokenValid,
     parseJwtPayload,
+    formatCountdown,
+    formatDateTime,
+    getPlayerStatus,
 } from './helpers';
 
 describe('getPositionName', () => {
@@ -153,5 +156,41 @@ describe('isTokenValid', () => {
         expect(isTokenValid('')).toBe(false);
         expect(isTokenValid('no-es-un-jwt')).toBe(false);
         expect(isTokenValid('a.b')).toBe(false);
+    });
+});
+
+describe('formatCountdown', () => {
+    test('formatea hh:mm:ss con ceros a la izquierda', () => {
+        expect(formatCountdown({ hours: 5, minutes: 2, seconds: 9 })).toBe('05:02:09');
+    });
+
+    test('antepone los días cuando los hay', () => {
+        expect(formatCountdown({ days: 2, hours: 0, minutes: 0, seconds: 1 })).toBe('2d 00:00:01');
+    });
+});
+
+describe('formatDateTime', () => {
+    test('incluye los segundos', () => {
+        const d = new Date(2026, 10, 3, 14, 32, 5);
+        expect(formatDateTime(d, { day: 'numeric', month: 'short' })).toMatch(/14:32:05/);
+    });
+
+    test('devuelve cadena vacía para fechas vacías o inválidas', () => {
+        expect(formatDateTime(null)).toBe('');
+        expect(formatDateTime('no-es-fecha')).toBe('');
+    });
+});
+
+describe('getPlayerStatus', () => {
+    test('normaliza alias del API', () => {
+        expect(getPlayerStatus('doubtful').key).toBe('doubt');
+        expect(getPlayerStatus('injured').label).toBe('Lesionado');
+        expect(getPlayerStatus('OUT_OF_LEAGUE').key).toBe('out_of_league');
+    });
+
+    test('devuelve null para disponibles o desconocidos', () => {
+        expect(getPlayerStatus('ok')).toBeNull();
+        expect(getPlayerStatus(undefined)).toBeNull();
+        expect(getPlayerStatus('algo-raro')).toBeNull();
     });
 });

@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from '../../../utils/motionShim';
 import { Clock, Unlock, Shield, Plus, ShoppingCart, X, Trophy, TrendingUp } from 'lucide-react';
-import { formatNumber, formatNumberWithDots, getPositionName, getPositionColor } from '../../../utils/helpers';
+import { formatNumber, formatNumberWithDots, getPositionName, getPositionColor, formatDateTime } from '../../../utils/helpers';
 import { getClauseStatusColor, getClauseLockState } from '../../../utils/clauseUtils';
 import ClauseBuyoutButton from './ClauseBuyoutButton';
+import Countdown from '../../Common/Countdown';
+import PlayerStatusBadge from '../../Common/PlayerStatusBadge';
 
 const PlayerRow = ({
     playerTeam,
@@ -70,8 +72,9 @@ const PlayerRow = ({
 
                 {/* Player Info */}
                 <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
                         {player.nickname || player.name}
+                        <PlayerStatusBadge status={player.playerStatus} compact />
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <span>{player.team?.name}</span>
@@ -172,7 +175,7 @@ const PlayerRow = ({
                                                 ? 'text-yellow-600 dark:text-yellow-400'
                                                 : 'text-red-600 dark:text-red-400'
                                         }`}>
-                                            {clauseState.timeRemaining}
+                                            <Countdown endTime={playerTeam.buyoutClauseLockedEndTime} fallback="Disponible" />
                                         </span>
                                     </>
                                 )}
@@ -180,9 +183,8 @@ const PlayerRow = ({
 
                             {!clauseOpen && (
                                 <div className="text-xs text-gray-500 dark:text-gray-400 pt-1 border-t border-yellow-200 dark:border-yellow-800">
-                                    Expira: {new Date(playerTeam.buyoutClauseLockedEndTime).toLocaleString('es-ES', {
-                                        day: 'numeric', month: 'short', year: 'numeric',
-                                        hour: '2-digit', minute: '2-digit'
+                                    Expira: {formatDateTime(playerTeam.buyoutClauseLockedEndTime, {
+                                        day: 'numeric', month: 'short', year: 'numeric'
                                     })}
                                 </div>
                             )}
@@ -252,9 +254,12 @@ const PlayerRow = ({
                                             ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                             : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
                                     }`}>
-                                        {expirationInfo.expired
-                                            ? '⏰ Expirado'
-                                            : `⏰ Expira: ${expirationInfo.formattedDate} (${expirationInfo.timeLeft})`}
+                                        {expirationInfo.expired ? '⏰ Expirado' : (
+                                            <>
+                                                ⏰ Expira: {expirationInfo.formattedDate} (
+                                                <Countdown endTime={expirationInfo.expirationDate} fallback="Expirado" />)
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>

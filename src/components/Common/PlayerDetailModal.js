@@ -3,11 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from '../../utils/motionShim';
 import useBodyScrollLock from '../../utils/useBodyScrollLock';
 import { createPortal } from 'react-dom';
-import { X, Trophy, TrendingUp, Calendar, Star, User, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Trophy, TrendingUp, Calendar, Star, User, MapPin, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import { fantasyAPI } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import LoadingSpinner from './LoadingSpinner';
 import QuickAlertButton from './QuickAlertButton';
+import PlayerStatusBadge from './PlayerStatusBadge';
+import playerOwnershipService from '../../services/playerOwnershipService';
 import { useCurrentWeek } from '../../hooks/useCurrentWeek';
 import { formatCurrencyCompact } from '../../utils/helpers';
 
@@ -44,6 +46,18 @@ const PlayerDetailModal = ({ isOpen, onClose, player }) => {
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
+
+  // Dueño del jugador en la liga: misma query compartida que Mercado/Jugadores,
+  // así que si ya se cargó en otra vista no repite el recorrido de plantillas.
+  const { isSuccess: ownershipReady } = useQuery({
+    queryKey: ['playerOwnershipInit', leagueId],
+    queryFn: () => playerOwnershipService.initialize(leagueId),
+    enabled: isOpen && !!leagueId,
+    staleTime: 10 * 60 * 1000,
+  });
+  const owner = ownershipReady && resolvedPlayerId
+    ? playerOwnershipService.getPlayerOwner(resolvedPlayerId)
+    : null;
 
   const error = isTrendWithoutData
     ? 'Jugador de tendencias sin datos completos disponibles'
@@ -288,6 +302,9 @@ const PlayerDetailModal = ({ isOpen, onClose, player }) => {
               const playerTeam =
                 pm?.team?.name || mp?.team?.name || player.team?.name || null;
               const lastSeason = pm?.lastSeasonPoints;
+              const playerStatus =
+                pm?.playerStatus || playerData?.playerStatus ||
+                mp?.playerStatus || player.playerStatus || null;
               const initial = (playerName?.[0] || '?').toUpperCase();
 
               return (
@@ -331,6 +348,20 @@ const PlayerDetailModal = ({ isOpen, onClose, player }) => {
                         </span>
                       ) : null}
                     </div>
+
+                    {(playerStatus || ownershipReady) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                        <PlayerStatusBadge status={playerStatus} />
+                        {ownershipReady && (
+                          <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-0.5 rounded-full max-w-full">
+                            <UserCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate">
+                              {owner?.ownerName ? `Propiedad de ${owner.ownerName}` : 'Libre'}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {nextOpponent && (
                       <div className="mt-2 inline-flex items-center gap-1.5 text-xs sm:text-sm bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full">

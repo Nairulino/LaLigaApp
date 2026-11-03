@@ -3,6 +3,14 @@ import { motion, AnimatePresence } from '../../utils/motionShim';
 import { Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { setImageFallback } from '../../utils/helpers';
+import PlayerStatusBadge from './PlayerStatusBadge';
+
+// Texto de dueño para un resultado de jugador; null mientras el mapa de
+// dueños aún no está cargado (no se afirma "Libre" sin saberlo).
+export const playerOwnerLabel = (item) => {
+  if (!item.ownerResolved) return null;
+  return item.ownerName ? `👤 ${item.ownerName}` : 'Libre';
+};
 
 const SearchResults = ({ results, query, isVisible, onClose }) => {
   const navigate = useNavigate();
@@ -148,11 +156,14 @@ const SearchResults = ({ results, query, isVisible, onClose }) => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {player.name}
-                        </p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate min-w-0">
+                            {player.name}
+                          </p>
+                          {player.playerStatus && <PlayerStatusBadge status={player.playerStatus} compact />}
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {player.team || player.club} • {player.position}
+                          {[player.team || player.club, player.position, playerOwnerLabel(player)].filter(Boolean).join(' • ')}
                         </p>
                       </div>
                       {player.marketValue && (

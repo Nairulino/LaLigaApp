@@ -5,8 +5,10 @@ import { fantasyAPI } from '../../services/api';
 import oncesProbabesService from '../../services/oncesProbles';
 import { normalizePlayerName, normalizeTeamName } from '../../utils/playerNameMatcher';
 import { flattenPositionKeyedPlayers } from '../../utils/formationUtils';
+import { getPlayerStatus } from '../../utils/helpers';
 
 // Estados de jugador que ponen en riesgo la alineación (playerStatus del API)
+// (clave normalizada por getPlayerStatus, que absorbe alias como 'doubtful')
 const STATUS_RISKS = {
   injured: { label: 'Lesionado', severity: 'high' },
   suspended: { label: 'Sancionado', severity: 'high' },
@@ -84,7 +86,7 @@ const LineupRiskBanner = ({ teamId }) => {
     const out = [];
 
     starters.forEach((p) => {
-      const statusRisk = STATUS_RISKS[p.playerStatus];
+      const statusRisk = STATUS_RISKS[getPlayerStatus(p.playerStatus)?.key];
       if (statusRisk) {
         out.push({ player: p, ...statusRisk });
         return;

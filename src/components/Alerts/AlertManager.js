@@ -9,6 +9,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useAlertStore } from '../../stores/alertStore';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { formatDateTime } from '../../utils/helpers';
 
 const AlertManager = () => {
   const [_loading] = useState(false);
@@ -154,15 +155,11 @@ const AlertManager = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = (dateString) => formatDateTime(dateString, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 
   // handleStartMonitoring function moved above to avoid no-use-before-define
 

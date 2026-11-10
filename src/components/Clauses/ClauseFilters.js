@@ -70,6 +70,8 @@ const SORT_LABEL = {
   marketValue: 'Valor de Mercado',
   points: 'Puntos',
   timeRemaining: 'Tiempo Restante',
+  trendAmount: 'Mayor subida (€)',
+  trendPercent: 'Mayor subida (%)',
 };
 
 const ClauseFilters = ({
@@ -303,6 +305,8 @@ const ClauseFilters = ({
               <option value="marketValue">📈 Valor de Mercado</option>
               <option value="points">🏆 Puntos</option>
               <option value="timeRemaining">⏰ Tiempo Restante</option>
+              <option value="trendAmount">🚀 Mayor subida (€)</option>
+              <option value="trendPercent">📊 Mayor subida (%)</option>
             </select>
           </div>
         </div>

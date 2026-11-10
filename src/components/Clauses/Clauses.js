@@ -103,9 +103,26 @@ const Clauses = () => {
   // Sort clauses based on current criteria
   const sortClausesData = useCallback(
     (data) => {
+      // Campo de tendencia (último día) para las ordenaciones por subida.
+      const trendField =
+        sortBy === 'trendAmount' ? 'diferencia1' : sortBy === 'trendPercent' ? 'porcentaje' : null;
+
       data.sort((a, b) => {
         let comparison = 0;
-        switch (sortBy) {
+
+        if (trendField) {
+          // Jugadores sin datos de tendencia siempre al final, sea cual sea el orden.
+          const aVal = a.trendData?.[trendField];
+          const bVal = b.trendData?.[trendField];
+          const aHas = typeof aVal === 'number';
+          const bHas = typeof bVal === 'number';
+          if (aHas !== bHas) return aHas ? -1 : 1;
+          if (aHas) comparison = bVal - aVal;
+        }
+
+        switch (trendField ? null : sortBy) {
+          case null:
+            break;
           case 'clauseValue':
             comparison = b.clausulaAmount - a.clausulaAmount;
             break;
